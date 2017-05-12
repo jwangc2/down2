@@ -6,7 +6,7 @@ function getTemperature() {
     return 80
 }
 
-function buildComment(message) {
+function buildPost(message) {
     return {
         Message: message,
         Weather: getWeather(),
@@ -15,24 +15,24 @@ function buildComment(message) {
 }
 
 
-var CommentList = React.createClass({
+var PostList = React.createClass({
     render: function() {
         var commentNodes = this.props.data.map(function(comment) {
             return (
-                <Comment time={comment.Time} key={comment.ID}>
+                <Post time={comment.Time} key={comment.ID}>
                     {comment.Message}
-                </Comment>
+                </Post>
             ) 
         });
         return (
-            <div className="commentList">
+            <div className="postList">
                 {commentNodes}
             </div>
         )
     }
 });
 
-var CommentForm = React.createClass({
+var PostForm = React.createClass({
     getInitialState: function() {
         return ({text: ''});
     },
@@ -48,12 +48,12 @@ var CommentForm = React.createClass({
         if (!text) {
             return;
         }
-        this.props.onCommentSubmit(buildComment(text))
+        this.props.onPostSubmit(buildPost(text))
         this.setState({text: ''});
     },
     render: function() {
         return (
-            <form className="commentForm" onSubmit={this.handleSubmit}>
+            <form className="postForm" onSubmit={this.handleSubmit}>
                 <input
                     type="text"
                     placeholder="Say something..."
@@ -66,8 +66,8 @@ var CommentForm = React.createClass({
     }
 });
 
-var CommentBox = React.createClass({
-    loadCommentsFromServer: function(cursor) {
+var PostBox = React.createClass({
+    loadPostsFromServer: function(cursor) {
         var query = ""
         if (typeof(cursor)!=='undefined') {
             query = "?cursor=" + cursor.toString()
@@ -78,7 +78,7 @@ var CommentBox = React.createClass({
             cache: false,
             success: function(data) {
                 this.setState({data: this.state.data.concat(data["data"])});
-                this.loadCommentsFromServer()
+                this.loadPostsFromServer()
             }.bind(this),
             error: function(xhr, status, err) {
                 console.error(this.props.url, status, err.toString());
@@ -86,7 +86,7 @@ var CommentBox = React.createClass({
             }.bind(this)
         });
     },
-    handleCommentsSubmit: function(comment) {
+    handlePostsSubmit: function(comment) {
         $.ajax({
             url: this.props.submitUrl,
             dataType: 'json',
@@ -104,27 +104,27 @@ var CommentBox = React.createClass({
         return {data: []};
     },
     componentDidMount: function() {
-        this.loadCommentsFromServer(-1);
+        this.loadPostsFromServer(-1);
     },
     render: function() {
         return (
-            <div className="commentBox">
-                <h1>Comments</h1>
-                <CommentList data={this.state.data}/>
-                <CommentForm onCommentSubmit={this.handleCommentsSubmit} />
+            <div className="postBox">
+                <h1>Posts</h1>
+                <PostList data={this.state.data}/>
+                <PostForm onPostSubmit={this.handlePostsSubmit} />
             </div>
         )
     }
 });
 
-var Comment = React.createClass({
+var Post = React.createClass({
     rawMarkup: function() {
         return this.props.children
     },
     
     render: function() {       
        return (
-        <div className="comment">
+        <div className="post">
             <span>{this.props.time}: {this.rawMarkup()}</span>
         </div>
        )
@@ -132,6 +132,6 @@ var Comment = React.createClass({
 });
 
 ReactDOM.render(
-    <CommentBox pollUrl="/api/posts" submitUrl="/api/posts/submit" longPollInterval={30000} />,
+    <PostBox pollUrl="/api/posts" submitUrl="/api/posts/submit" longPollInterval={30000} />,
     document.getElementById('content')
 );
