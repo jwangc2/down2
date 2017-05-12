@@ -1,11 +1,26 @@
-// tutorial7.js
+function getWeather() {
+    return "Any"
+}
+
+function getTemperature() {
+    return 80
+}
+
+function buildComment(message) {
+    return {
+        Message: message,
+        Weather: getWeather(),
+        Temperature: getTemperature()
+    }
+}
+
 
 var CommentList = React.createClass({
     render: function() {
         var commentNodes = this.props.data.map(function(comment) {
             return (
-                <Comment author={comment.author} key={comment.id}>
-                    {comment.text}
+                <Comment time={comment.Time} key={comment.ID}>
+                    {comment.Message}
                 </Comment>
             ) 
         });
@@ -19,7 +34,7 @@ var CommentList = React.createClass({
 
 var CommentForm = React.createClass({
     getInitialState: function() {
-        return ({author: '', text: ''});
+        return ({text: ''});
     },
     handleAuthorChange: function(e) {
         this.setState({author: e.target.value});
@@ -29,23 +44,16 @@ var CommentForm = React.createClass({
     },
     handleSubmit: function(e) {
         e.preventDefault();
-        var author = this.state.author.trim();
         var text = this.state.text.trim();
-        if (!text || !author) {
+        if (!text) {
             return;
         }
-        this.props.onCommentSubmit({author: this.state.author, text: this.state.text})
-        this.setState({author: '', text: ''});
+        this.props.onCommentSubmit(buildComment(text))
+        this.setState({text: ''});
     },
     render: function() {
         return (
             <form className="commentForm" onSubmit={this.handleSubmit}>
-                <input
-                    type="text"
-                    placeholder="Your name"
-                    value={this.state.author}
-                    onChange={this.handleAuthorChange}
-                />
                 <input
                     type="text"
                     placeholder="Say something..."
@@ -59,28 +67,33 @@ var CommentForm = React.createClass({
 });
 
 var CommentBox = React.createClass({
-    loadCommentsFromServer: function() {
+    loadCommentsFromServer: function(cursor) {
+        var query = ""
+        if (typeof(cursor)!=='undefined') {
+            query = "?cursor=" + cursor.toString()
+        }
         $.ajax({
-            url: this.props.url,
+            url: this.props.pollUrl + query,
             dataType: 'json',
             cache: false,
             success: function(data) {
-                this.setState({data: data["data"]});
+                this.setState({data: this.state.data.concat(data["data"])});
+                this.loadCommentsFromServer()
             }.bind(this),
             error: function(xhr, status, err) {
                 console.error(this.props.url, status, err.toString());
+                // todo: prompt user to refresh?
             }.bind(this)
         });
     },
     handleCommentsSubmit: function(comment) {
         $.ajax({
-            url: this.props.url,
+            url: this.props.submitUrl,
             dataType: 'json',
             contentType: "application/json; charset=utf-8",
             type: "POST",
             data: JSON.stringify(comment),
             success: function(data) {
-                this.setState({data: data});
             }.bind(this),
             error: function(xhr, status, err) {
                 console.error(this.props.url, status, err.toString());
@@ -91,8 +104,7 @@ var CommentBox = React.createClass({
         return {data: []};
     },
     componentDidMount: function() {
-        this.loadCommentsFromServer(),
-        setInterval(this.loadCommentsFromServer, this.props.pollInterval);
+        this.loadCommentsFromServer(-1);
     },
     render: function() {
         return (
@@ -107,24 +119,19 @@ var CommentBox = React.createClass({
 
 var Comment = React.createClass({
     rawMarkup: function() {
-        var md = new Remarkable();
-        var rawMarkup = md.render(this.props.children.toString())
-        return { __html: rawMarkup };
+        return this.props.children
     },
     
     render: function() {       
        return (
         <div className="comment">
-            <h2 className="commentAuthor">
-                {this.props.author}
-            </h2>
-            <span dangerouslySetInnerHTML={this.rawMarkup()} />
+            <span>{this.props.time}: {this.rawMarkup()}</span>
         </div>
        )
    } 
 });
 
 ReactDOM.render(
-    <CommentBox url="/api/comments" pollInterval={2000} />,
+    <CommentBox pollUrl="/api/posts" submitUrl="/api/posts/submit" longPollInterval={30000} />,
     document.getElementById('content')
 );
