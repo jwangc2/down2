@@ -101,9 +101,8 @@ class PostHandler(JsonHandler):
         future = Future()
         future.set_result(newPost)
         result = yield future
-        data.append(result)
         id += 1
-        globalPostBuffer.newMessages([newPost])
+        globalPostBuffer.newMessages([result])
         self.set_status(200)
         
     def on_connection_close(self):
