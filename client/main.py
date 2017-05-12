@@ -90,6 +90,7 @@ class PostHandler(JsonHandler):
         except Exception as e:
             print("Error: " + str(e))
         
+    @gen.coroutine
     def post(self):
         global id, data
         msg = self.request.arguments["Message"]
@@ -97,7 +98,10 @@ class PostHandler(JsonHandler):
         temp = self.request.arguments["Temperature"]
         time = PostHandler.getISODate()
         newPost = self.buildPost(id, msg, weather, int(temp), time, 0)
-        data.append(newPost)
+        future = Future()
+        future.set_result(newPost)
+        result = yield future
+        data.append(result)
         id += 1
         globalPostBuffer.newMessages([newPost])
         self.set_status(200)
