@@ -3,6 +3,7 @@ import json
 import datetime
 import tornado.ioloop
 import tornado.web
+from tornado.httpclient import AsyncHTTPClient
 from tornado.concurrent import Future
 from tornado import gen
 
@@ -75,6 +76,32 @@ class JsonHandler(tornado.web.RequestHandler):
     def write_json(self):
         output = json.dumps(self.response)
         self.write(output)
+        
+class WeatherHandler(JsonHandler):
+
+    apikey = "9ad1eeb07ab80737"
+    baseUrl = "http://api.wunderground.com/api/" + apikey
+    
+    @gen.coroutine
+    def get(self):
+        zip = self.get_argument("zip", None)
+        weatherFuture = Future()
+        if zip is None:
+            weatherFuture.set_result({"Weather": None, "Temperature": None})
+        else:
+            handler = lambda response : WeatherHandler.handleResponse(weatherFuture, response)
+            query = "%s/%s/q/%s.json"%(WeatherHandler.baseUrl, "conditions", zip)
+            httpClient.fetch(query, handler)
+        self.response = yield weatherFuture
+        self.write_json()
+        
+    def handleResponse(future, response):
+        json_data = tornado.escape.json_decode(response.body)
+        current_observation = json_data["current_observation"]
+        temp = int(current_observation["temp_f"])
+        weather = current_observation["weather"]
+        future.set_result({"Weather": weather, "Temperature": temp})
+        
 
 class PostHandler(JsonHandler):
     @gen.coroutine
@@ -104,6 +131,8 @@ class PostHandler(JsonHandler):
         id += 1
         globalPostBuffer.newMessages([result])
         self.set_status(200)
+        self.response = {"error": ""}
+        self.write_json()
         
     def on_connection_close(self):
         globalPostBuffer.cancelWait(self.future)
@@ -124,12 +153,18 @@ settings = {
     "xsrf_cookies": True,
 }
 application = tornado.web.Application([
+    (r"/api/weather", WeatherHandler),
     (r"/api/posts/submit", PostHandler),
     (r"/api/posts", PostHandler),
     (r"/(.*)", tornado.web.StaticFileHandler, {"path": root, "default_filename": "public/index.html"}),
 ])
 
 if __name__ == '__main__':
-    globalPostBuffer = PostBuffer()
-    application.listen(port)
-    tornado.ioloop.IOLoop.instance().start()
+    try:
+        httpClient = AsyncHTTPClient()
+        globalPostBuffer = PostBuffer()
+        application.listen(port)
+        tornado.ioloop.IOLoop.instance().start()
+    except KeyboardInterrupt as e:
+        print(str(e))
+        httpClient.close()

@@ -1,25 +1,45 @@
-function getWeather() {
-    return "Any"
+function getZipcode(onSuccess) {
+    $.get("http://ipinfo.io/json", function (response) {
+        onSuccess(response.postal);
+    });
+    return null;
 }
 
-function getTemperature() {
-    return 80
-}
-
-function buildPost(message) {
-    return {
-        Message: message,
-        Weather: getWeather(),
-        Temperature: getTemperature()
+function getWeatherData(zip, onSuccess) {
+    if (zip != null) {
+        $.get("/api/weather?zip=" + zip, function(response) {
+            onSuccess(response);
+        });
     }
 }
 
+function buildPost(message, weatherData) {    
+    return {
+        Message: message,
+        Weather: weatherData['Weather'],
+        Temperature: weatherData['Temperature']
+    }
+}
+
+var Post = React.createClass({
+    rawMarkup: function() {
+        return this.props.children
+    },
+    
+    render: function() {       
+       return (
+        <div className="post">
+            <span>{this.props.time}: {this.rawMarkup()}</span>
+        </div>
+       )
+   } 
+});
 
 var PostList = React.createClass({
     render: function() {
         var commentNodes = this.props.data.map(function(comment) {
             return (
-                <Post time={comment.Time} key={comment.ID}>
+                <Post time={comment.Time} key={"Post-" + comment.ID}>
                     {comment.Message}
                 </Post>
             ) 
@@ -34,7 +54,14 @@ var PostList = React.createClass({
 
 var PostForm = React.createClass({
     getInitialState: function() {
-        return ({text: ''});
+        return ({text: '', zipcode: null});
+    },
+    componentDidMount: function() {
+        var self = this;
+        var onSuccess = function(zip) {
+            self.setState({zipcode: zip});
+        };
+        getZipcode(onSuccess);
     },
     handleAuthorChange: function(e) {
         this.setState({author: e.target.value});
@@ -48,8 +75,14 @@ var PostForm = React.createClass({
         if (!text) {
             return;
         }
-        this.props.onPostSubmit(buildPost(text))
-        this.setState({text: ''});
+        self = this;
+        getWeatherData(this.state.zipcode, function(weatherData) {
+            var post = buildPost(text, weatherData);
+            if (post != null) {
+                self.props.onPostSubmit(post)
+                self.setState({text: ''});
+            }
+        });
     },
     render: function() {
         return (
@@ -68,9 +101,9 @@ var PostForm = React.createClass({
 
 var PostBox = React.createClass({
     loadPostsFromServer: function(cursor) {
-        var query = ""
+        var query = "";
         if (typeof(cursor)!=='undefined') {
-            query = "?cursor=" + cursor.toString()
+            query = "?cursor=" + cursor.toString();
         }
         $.ajax({
             url: this.props.pollUrl + query,
@@ -78,7 +111,7 @@ var PostBox = React.createClass({
             cache: false,
             success: function(data) {
                 this.setState({data: this.state.data.concat(data["data"])});
-                this.loadPostsFromServer()
+                this.loadPostsFromServer();
             }.bind(this),
             error: function(xhr, status, err) {
                 console.error(this.props.url, status, err.toString());
@@ -94,6 +127,7 @@ var PostBox = React.createClass({
             type: "POST",
             data: JSON.stringify(comment),
             success: function(data) {
+                // do nothing
             }.bind(this),
             error: function(xhr, status, err) {
                 console.error(this.props.url, status, err.toString());
@@ -115,20 +149,6 @@ var PostBox = React.createClass({
             </div>
         )
     }
-});
-
-var Post = React.createClass({
-    rawMarkup: function() {
-        return this.props.children
-    },
-    
-    render: function() {       
-       return (
-        <div className="post">
-            <span>{this.props.time}: {this.rawMarkup()}</span>
-        </div>
-       )
-   } 
 });
 
 ReactDOM.render(
