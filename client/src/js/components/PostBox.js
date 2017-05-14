@@ -1,4 +1,7 @@
 var Panel = require("react-bootstrap/lib/Panel");
+var Grid = require("react-bootstrap/lib/Grid");
+var Row = require("react-bootstrap/lib/Row");
+var Col = require("react-bootstrap/lib/Col");
 var PostList = require("./PostList");
 var PostForm = require("./PostForm");
 
@@ -45,10 +48,16 @@ var PostBox = React.createClass({
     },
     render: function() {
         return (
-            <Panel header="DownTo" className="postBox">
-                <PostForm onPostSubmit={this.handlePostsSubmit} />
-                <PostList data={this.state.data}/>
-            </Panel>
+            <Grid>
+                <Row>
+                    <Col mdOffset={3} md={6} sm={12}>
+                        <Panel header="DownTo" className="postBox">
+                            <PostForm onPostSubmit={this.handlePostsSubmit} />
+                            <PostList data={this.state.data}/>
+                        </Panel>
+                    </Col>
+                </Row>
+            </Grid>
         )
     }
 });
