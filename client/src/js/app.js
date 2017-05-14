@@ -1,3 +1,9 @@
+var Panel = require("react-bootstrap/lib/Panel");
+var Button = require("react-bootstrap/lib/Button");
+var FormGroup = require("react-bootstrap/lib/FormGroup");
+var ControlLabel = require("react-bootstrap/lib/ControlLabel");
+var FormControl = require("react-bootstrap/lib/FormControl");
+
 function Location(latitude, longitude) {
     this.latitude = latitude
     this.longitude = longitude
@@ -35,10 +41,10 @@ var Post = React.createClass({
     },
     
     render: function() {       
-       return (
-        <div className="post">
-            <span>{this.props.time}: {this.rawMarkup()}</span>
-        </div>
+        return (
+            <div className="post">
+                <span>{this.props.time}: {this.rawMarkup()}</span>
+            </div>
        )
    } 
 });
@@ -56,7 +62,7 @@ var PostList = React.createClass({
             <div className="postList">
                 {commentNodes.reverse()}
             </div>
-        )
+        );
     }
 });
 
@@ -95,13 +101,18 @@ var PostForm = React.createClass({
     render: function() {
         return (
             <form className="postForm" onSubmit={this.handleSubmit}>
-                <input
-                    type="text"
-                    placeholder="Say something..."
-                    value={this.state.text}
-                    onChange={this.handleTextChange}
-                />
-                <input type="submit" value="Post" />
+                <FormGroup>
+                    <ControlLabel>I'm Down To...</ControlLabel>
+                    <FormControl
+                        componentClass="textarea"
+                        placeholder="Say something..."
+                        value={this.state.text}
+                        onChange={this.handleTextChange}
+                    />
+                    <Button type="submit" block>
+                        Submit
+                    </Button>
+                </FormGroup>
             </form>
         )
     }
@@ -150,11 +161,10 @@ var PostBox = React.createClass({
     },
     render: function() {
         return (
-            <div className="postBox">
-                <h1>DownTo</h1>
+            <Panel header="DownTo" className="postBox">
                 <PostForm onPostSubmit={this.handlePostsSubmit} />
                 <PostList data={this.state.data}/>
-            </div>
+            </Panel>
         )
     }
 });
