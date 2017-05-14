@@ -11458,10 +11458,10 @@ var PostForm = __webpack_require__(142);
 var PostBox = React.createClass({
     displayName: "PostBox",
 
-    loadPostsFromServer: function loadPostsFromServer(cursor) {
+    loadPostsFromServer: function loadPostsFromServer(count) {
         var query = "";
-        if (typeof cursor !== 'undefined') {
-            query = "?cursor=" + cursor.toString();
+        if (typeof count !== 'undefined') {
+            query = "?count=" + count.toString();
         }
         $.ajax({
             url: this.props.pollUrl + query,
@@ -11496,7 +11496,7 @@ var PostBox = React.createClass({
         return { data: [] };
     },
     componentDidMount: function componentDidMount() {
-        this.loadPostsFromServer(-1);
+        this.loadPostsFromServer(this.props.batchSize);
     },
     render: function render() {
         return React.createElement(
@@ -11531,7 +11531,12 @@ module.exports = PostBox;
 
 var PostBox = __webpack_require__(139);
 
-ReactDOM.render(React.createElement(PostBox, { pollUrl: "/api/posts", submitUrl: "/api/posts/submit", longPollInterval: 30000 }), document.getElementById('content'));
+ReactDOM.render(React.createElement(PostBox, {
+    pollUrl: "/api/posts",
+    submitUrl: "/api/posts/submit",
+    longPollInterval: 30000,
+    batchSize: 15
+}), document.getElementById('content'));
 
 /***/ }),
 /* 141 */

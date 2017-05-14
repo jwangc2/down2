@@ -8,7 +8,7 @@ from tornado.httpclient import AsyncHTTPClient
 from tornado.concurrent import Future
 from tornado import gen
 
-id = 3
+id = 1
 data = [
 ]
 
@@ -18,17 +18,12 @@ class PostBuffer(object):
         self.cache = data
         self.cacheSize = cacheSize
         
-    def waitForMessages(self, cursor=None):
+    def waitForMessages(self, count=None):
         resultFuture = Future()
-        if cursor:
-            newCount = 0
-            for msg in reversed(self.cache):
-                if msg["ID"] == cursor:
-                    break;
-                newCount += 1
-            if newCount:
-                resultFuture.set_result(self.cache[-newCount:])
-                return resultFuture
+        if count is not None and count > 0:
+            count = min(len(self.cache), count)
+            resultFuture.set_result(self.cache[-count:])
+            return resultFuture
         self.subscribers.add(resultFuture)
         return resultFuture
         
@@ -110,8 +105,8 @@ class PostHandler(JsonHandler):
     @gen.coroutine
     def get(self):
         try:
-            cursor = self.get_argument("cursor", 0, True)
-            self.future = globalPostBuffer.waitForMessages(cursor=cursor)
+            count = int(self.get_argument("count", 0, True))
+            self.future = globalPostBuffer.waitForMessages(count=count)
             messages = yield self.future
             if self.request.connection.stream.closed():
                 return

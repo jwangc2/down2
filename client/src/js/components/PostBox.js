@@ -6,10 +6,10 @@ var PostList = require("./PostList");
 var PostForm = require("./PostForm");
 
 var PostBox = React.createClass({
-    loadPostsFromServer: function(cursor) {
+    loadPostsFromServer: function(count) {
         var query = "";
-        if (typeof(cursor)!=='undefined') {
-            query = "?cursor=" + cursor.toString();
+        if (typeof(count)!=='undefined') {
+            query = "?count=" + count.toString();
         }
         $.ajax({
             url: this.props.pollUrl + query,
@@ -44,7 +44,7 @@ var PostBox = React.createClass({
         return {data: []};
     },
     componentDidMount: function() {
-        this.loadPostsFromServer(-1);
+        this.loadPostsFromServer(this.props.batchSize);
     },
     render: function() {
         return (
