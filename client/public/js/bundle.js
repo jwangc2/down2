@@ -12376,7 +12376,8 @@ var PostForm = React.createClass({
                     "I'm Down To..."
                 ),
                 React.createElement(FormControl, {
-                    componentClass: "textarea",
+                    componentClass: "input",
+                    type: "text",
                     placeholder: "Say something...",
                     value: this.state.text,
                     onChange: this.handleTextChange

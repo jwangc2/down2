@@ -104,7 +104,8 @@ var PostForm = React.createClass({
                 <FormGroup>
                     <ControlLabel>I'm Down To...</ControlLabel>
                     <FormControl
-                        componentClass="textarea"
+                        componentClass="input"
+                        type="text"
                         placeholder="Say something..."
                         value={this.state.text}
                         onChange={this.handleTextChange}
