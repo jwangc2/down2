@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import datetime
 import tornado.ioloop
@@ -9,8 +10,6 @@ from tornado import gen
 
 id = 3
 data = [
-    {"ID": 1, "Message": "This is one comment", "Weather": "Any", "Temperature": 80, "Time": "TBD", "Likes": 0},
-    {"ID": 2, "Message": "This is *another* comment", "Weather": "Any", "Temperature": 80, "Time": "TBD", "Likes": 0}
 ]
 
 class PostBuffer(object):
@@ -84,14 +83,18 @@ class WeatherHandler(JsonHandler):
     
     @gen.coroutine
     def get(self):
-        zip = self.get_argument("zip", None)
+        lat = self.get_argument("lat", None)
+        lon = self.get_argument("lon", None)
         weatherFuture = Future()
-        if zip is None:
+        if lat is None or lon is None:
             weatherFuture.set_result({"Weather": None, "Temperature": None})
         else:
-            handler = lambda response : WeatherHandler.handleResponse(weatherFuture, response)
-            query = "%s/%s/q/%s.json"%(WeatherHandler.baseUrl, "conditions", zip)
-            httpClient.fetch(query, handler)
+            if useMockup:
+                weatherFuture.set_result({"Weather": "Overcast", "Temperature": 69})
+            else:
+                handler = lambda response : WeatherHandler.handleResponse(weatherFuture, response)
+                query = "%s/%s/q/%s,%s.json"%(WeatherHandler.baseUrl, "conditions", lat, lon)
+                httpClient.fetch(query, handler)
         self.response = yield weatherFuture
         self.write_json()
         
@@ -119,16 +122,14 @@ class PostHandler(JsonHandler):
         
     @gen.coroutine
     def post(self):
-        global id, data
+        global data
         msg = self.request.arguments["Message"]
         weather = self.request.arguments["Weather"]
         temp = self.request.arguments["Temperature"]
-        time = PostHandler.getISODate()
-        newPost = self.buildPost(id, msg, weather, int(temp), time, 0)
+        newPost = PostHandler.buildPost(msg, weather, int(temp))
         future = Future()
         future.set_result(newPost)
         result = yield future
-        id += 1
         globalPostBuffer.newMessages([result])
         self.set_status(200)
         self.response = {"error": ""}
@@ -137,8 +138,11 @@ class PostHandler(JsonHandler):
     def on_connection_close(self):
         globalPostBuffer.cancelWait(self.future)
         
-    def buildPost(self, id, msg, weather, temp, time, likes):
-        return {"ID": id, "Message": msg, "Weather": weather, "Temperature": temp, "Time": time, "Likes": likes}
+    def buildPost(msg, weather, temp):
+        global id
+        newPost = {"ID": id, "Message": msg, "Weather": weather, "Temperature": temp, "Time": PostHandler.getISODate(), "Likes": 0}
+        id += 1
+        return newPost
         
     def getISODate():
         date = datetime.datetime.utcnow().isoformat().split('.')[0]
@@ -159,10 +163,16 @@ application = tornado.web.Application([
     (r"/(.*)", tornado.web.StaticFileHandler, {"path": root, "default_filename": "public/index.html"}),
 ])
 
+useMockup = False
 if __name__ == '__main__':
     try:
+        for arg in sys.argv[1:]:
+            if arg == "-m":
+                useMockup = True
+                print("Using mockup...")
         httpClient = AsyncHTTPClient()
         globalPostBuffer = PostBuffer()
+        globalPostBuffer.newMessages([PostHandler.buildPost("[System] Welcome!", "Any", 69)])
         application.listen(port)
         tornado.ioloop.IOLoop.instance().start()
     except KeyboardInterrupt as e:

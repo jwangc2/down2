@@ -1,13 +1,21 @@
-function getZipcode(onSuccess) {
+function Location(latitude, longitude) {
+    this.latitude = latitude
+    this.longitude = longitude
+}
+
+function getLocation(onSuccess) {
     $.get("http://ipinfo.io/json", function (response) {
-        onSuccess(response.postal);
+        var locs = response.loc.split(",")
+        var lat = parseFloat(locs[0].trim())
+        var lon = parseFloat(locs[1].trim())
+        onSuccess(new Location(lat, lon));
     });
     return null;
 }
 
-function getWeatherData(zip, onSuccess) {
-    if (zip != null) {
-        $.get("/api/weather?zip=" + zip, function(response) {
+function getWeatherData(loc, onSuccess) {
+    if (loc != null) {
+        $.get("/api/weather?lat=" + loc.latitude.toString() + "&lon=" + loc.longitude.toString(), function(response) {
             onSuccess(response);
         });
     }
@@ -54,14 +62,14 @@ var PostList = React.createClass({
 
 var PostForm = React.createClass({
     getInitialState: function() {
-        return ({text: '', zipcode: null});
+        return ({text: '', location: null});
     },
     componentDidMount: function() {
         var self = this;
-        var onSuccess = function(zip) {
-            self.setState({zipcode: zip});
+        var onSuccess = function(loc) {
+            self.setState({location: loc});
         };
-        getZipcode(onSuccess);
+        getLocation(onSuccess);
     },
     handleAuthorChange: function(e) {
         this.setState({author: e.target.value});
@@ -76,7 +84,7 @@ var PostForm = React.createClass({
             return;
         }
         self = this;
-        getWeatherData(this.state.zipcode, function(weatherData) {
+        getWeatherData(this.state.location, function(weatherData) {
             var post = buildPost(text, weatherData);
             if (post != null) {
                 self.props.onPostSubmit(post)
