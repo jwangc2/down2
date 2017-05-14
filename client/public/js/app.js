@@ -54,7 +54,7 @@ var PostList = React.createClass({
         });
         return (
             <div className="postList">
-                {commentNodes}
+                {commentNodes.reverse()}
             </div>
         )
     }
@@ -151,9 +151,9 @@ var PostBox = React.createClass({
     render: function() {
         return (
             <div className="postBox">
-                <h1>Posts</h1>
-                <PostList data={this.state.data}/>
+                <h1>DownTo</h1>
                 <PostForm onPostSubmit={this.handlePostsSubmit} />
+                <PostList data={this.state.data}/>
             </div>
         )
     }
