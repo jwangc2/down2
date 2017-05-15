@@ -67,15 +67,15 @@ var PostForm = React.createClass({
         return (
             <form className="postForm" onSubmit={this.handleSubmit}>
                 <FormGroup>
-                    <ControlLabel>I'm Down To...</ControlLabel>
+                    <ControlLabel>I'm Down</ControlLabel>
                     <FormControl
                         componentClass="input"
                         type="text"
-                        placeholder="Say something..."
+                        placeholder="to..."
                         value={this.state.text}
                         onChange={this.handleTextChange}
                     />
-                    <Button type="submit" block>
+                    <Button type="submit" bsSize="xsmall" block>
                         Submit
                     </Button>
                 </FormGroup>

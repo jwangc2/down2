@@ -1,5 +1,5 @@
 .postList {
-    max-height: 350px;
-    min-height: 350px;
+    max-height: 300px;
+    min-height: 300px;
     overflow-y: scroll;
 }
