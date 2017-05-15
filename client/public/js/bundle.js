@@ -11834,7 +11834,26 @@ var PostBox = React.createClass({
             dataType: 'json',
             cache: false,
             success: function (data) {
-                this.setState({ data: this.state.data.concat(data["data"]) });
+                var newData = data["data"];
+                var match, i, j;
+                for (i = 0; i < newData.length; i++) {
+                    match = -1;
+                    j = 0;
+                    while (j < this.state.data.length && match == -1) {
+                        if (this.state.data[j]["ID"] == newData[i]["ID"]) {
+                            match = j;
+                        }
+                        j += 1;
+                    }
+                    if (match == -1) {
+                        // append
+                        this.state.data.push(newData[i]);
+                    } else {
+                        // update
+                        this.state.data[match] = newData[i];
+                    }
+                }
+                this.setState({ data: this.state.data });
                 this.loadPostsFromServer();
             }.bind(this),
             error: function (xhr, status, err) {
@@ -11854,6 +11873,25 @@ var PostBox = React.createClass({
             data: JSON.stringify(mData),
             success: function (data) {
                 // do nothing
+            }.bind(this),
+            error: function (xhr, status, err) {
+                console.error(this.props.url, status, err.toString());
+            }.bind(this)
+        });
+    },
+    handlePostLiked: function handlePostLiked(postID, onSuccess) {
+        var mData = {
+            "PostID": postID,
+            "UserID": this.state.UserID
+        };
+        $.ajax({
+            url: this.props.likeUrl,
+            dataType: 'json',
+            contentType: "application/json; charset=utf-8",
+            type: "POST",
+            data: JSON.stringify(mData),
+            success: function (data) {
+                onSuccess(data);
             }.bind(this),
             error: function (xhr, status, err) {
                 console.error(this.props.url, status, err.toString());
@@ -11880,7 +11918,7 @@ var PostBox = React.createClass({
                         Panel,
                         { header: "DownTo", className: "postBox" },
                         React.createElement(PostForm, { onPostSubmit: this.handlePostsSubmit }),
-                        React.createElement(PostList, { data: this.state.data })
+                        React.createElement(PostList, { onPostLiked: this.handlePostLiked, data: this.state.data })
                     )
                 )
             )
@@ -11902,6 +11940,7 @@ var PostBox = __webpack_require__(141);
 ReactDOM.render(React.createElement(PostBox, {
     pollUrl: "/api/posts",
     submitUrl: "/api/posts/submit",
+    likeUrl: "/api/posts/like",
     checkinUrl: "/api/checkin",
     longPollInterval: 30000,
     batchSize: 15
@@ -12039,27 +12078,34 @@ var PostList = React.createClass({
     getInitialState: function getInitialState() {
         return { liked: new Set() };
     },
-    handleLike: function handleLike(id) {
-        if (this.state.liked.has(id)) {
-            this.state.liked.delete(id);
-        } else {
+    setLikeState: function setLikeState(id, liked) {
+        if (liked) {
             this.state.liked.add(id);
+        } else {
+            this.state.liked.delete(id);
         }
         this.setState({ liked: this.state.liked });
+    },
+    handleLike: function handleLike(id) {
+        this.setLikeState(id, !this.state.liked.has(id));
+        var self = this;
+        this.props.onPostLiked(id, function (data) {
+            self.setLikeState(id, data["Liked"]);
+        });
     },
     render: function render() {
         var self = this;
         var commentNodes = this.props.data.map(function (postEntry) {
             return React.createElement(
                 ListGroupItem,
-                { key: "Post-" + postEntry.ID },
+                { key: "Post-" + postEntry["ID"] },
                 React.createElement(
                     Post,
                     {
-                        time: postEntry.Time,
-                        postID: postEntry.ID,
-                        likes: postEntry.Likes,
-                        liked: self.state.liked.has(postEntry.ID),
+                        time: postEntry["Time"],
+                        postID: postEntry["ID"],
+                        likes: postEntry["Likes"],
+                        liked: self.state.liked.has(postEntry["ID"]),
                         onLike: self.handleLike
                     },
                     postEntry.Message

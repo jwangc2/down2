@@ -33,7 +33,26 @@ var PostBox = React.createClass({
             dataType: 'json',
             cache: false,
             success: function(data) {
-                this.setState({data: this.state.data.concat(data["data"])});
+                var newData = data["data"];
+                var match, i, j;
+                for (i = 0; i < newData.length; i++) {
+                    match = -1;
+                    j = 0;
+                    while(j < this.state.data.length && match == -1) {
+                        if (this.state.data[j]["ID"] == newData[i]["ID"]) {
+                            match = j;
+                        }
+                        j += 1;
+                    }
+                    if (match == -1) {
+                        // append
+                        this.state.data.push(newData[i]);
+                    } else {
+                        // update
+                        this.state.data[match] = newData[i];
+                    }
+                }
+                this.setState({data: this.state.data});
                 this.loadPostsFromServer();
             }.bind(this),
             error: function(xhr, status, err) {
@@ -57,7 +76,26 @@ var PostBox = React.createClass({
             error: function(xhr, status, err) {
                 console.error(this.props.url, status, err.toString());
             }.bind(this)
-        })
+        });
+    },
+    handlePostLiked: function(postID, onSuccess) {
+        var mData = {
+            "PostID": postID,
+            "UserID": this.state.UserID
+        };
+        $.ajax({
+            url: this.props.likeUrl,
+            dataType: 'json',
+            contentType: "application/json; charset=utf-8",
+            type: "POST",
+            data: JSON.stringify(mData),
+            success: function(data) {
+                onSuccess(data);
+            }.bind(this),
+            error: function(xhr, status, err) {
+                console.error(this.props.url, status, err.toString());
+            }.bind(this)
+        });
     },
     componentDidMount: function() {
         var self = this;
@@ -72,7 +110,7 @@ var PostBox = React.createClass({
                     <Col mdOffset={3} md={6} sm={12}>
                         <Panel header="DownTo" className="postBox">
                             <PostForm onPostSubmit={this.handlePostsSubmit} />
-                            <PostList data={this.state.data}/>
+                            <PostList onPostLiked={this.handlePostLiked} data={this.state.data}/>
                         </Panel>
                     </Col>
                 </Row>

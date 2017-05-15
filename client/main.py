@@ -48,11 +48,11 @@ class PostBuffer(object):
             
     def addLike(self, postID):
         if postID in self.cache.keys():
-            self.changeLike(postID, self.cache[postID] + 1)
+            self.changeLike(postID, self.cache[postID]["Likes"] + 1)
     
     def removeLike(self, postID):
         if postID in self.cache.keys():
-            self.changeLike(postID, self.cache[postID] - 1)
+            self.changeLike(postID, self.cache[postID]["Likes"] - 1)
     
     def changeLike(self, postID, likes):
         post = dict(self.cache[postID])
@@ -97,7 +97,7 @@ class PostHandler(JsonHandler):
         try:
             userID = self.get_argument("UserID", None, True)
             if userID is None or userID not in userActivity.keys():
-                self.write_error_custom(401, {"message": "Unauthorized request"})
+                self.write_error_custom(401, message="Unauthorized request")
             else:
                 count = int(self.get_argument("count", 0, True))
                 conditionsDict = userActivity[userID]["Conditions"]
@@ -115,7 +115,7 @@ class PostHandler(JsonHandler):
     def post(self):
         userID = self.request.arguments.get("UserID", None)
         if userID is None or userID not in userActivity.keys():
-            self.write_error_custom(401, {"message": "Unauthorized request"})
+            self.write_error_custom(401, message="Unauthorized request")
         else:
             global data
             msg = self.request.arguments["Message"]
@@ -149,11 +149,11 @@ class LikeHandler(JsonHandler):
     def post(self):
         userID = self.request.arguments.get("UserID", None)
         if userID is None or userID not in userActivity.keys():
-            self.write_error_custom(401, {"message": "Unauthorized request"})
+            self.write_error_custom(401, message="Unauthorized request")
         else:
             postID = self.request.arguments.get("PostID", None)
             if postID is None:
-                self.write_error_custom(400, {"message": "Bad Post ID"})
+                self.write_error_custom(400, message="Bad Post ID")
             else:
                 liked = postID in userActivity[userID]["Liked"]
                 if liked:
@@ -234,6 +234,7 @@ settings = {
 application = tornado.web.Application([
     (r"/api/checkin", UserHandler),
     (r"/api/posts/submit", PostHandler),
+    (r"/api/posts/like", LikeHandler),
     (r"/api/posts", PostHandler),
     (r"/(.*)", tornado.web.StaticFileHandler, {"path": root, "default_filename": "public/index.html"}),
 ])
