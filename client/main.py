@@ -7,38 +7,58 @@ import tornado.web
 from tornado.httpclient import AsyncHTTPClient
 from tornado.concurrent import Future
 from tornado import gen
+from Lib import uuid
 
 id = 1
-data = [
-]
+data = {}
+userActivity = {}
 
 class PostBuffer(object):
-    def __init__(self, cacheSize=200):
+    def __init__(self):
         self.subscribers = set()
         self.cache = data
-        self.cacheSize = cacheSize
         
-    def waitForMessages(self, count=None):
+    def getRelevantPosts(postList, conditions):
+        return postList
+        
+    def waitForMessages(self, conditions, count=0):
         resultFuture = Future()
-        if count is not None and count > 0:
-            count = min(len(self.cache), count)
-            resultFuture.set_result(self.cache[-count:])
-            return resultFuture
-        self.subscribers.add(resultFuture)
-        return resultFuture
+        subscriber = (conditions, resultFuture)
+        if count > 0:
+            relevantPosts = PostBuffer.getRelevantPosts([post for key, post in self.cache.items()], conditions)
+            relevantCount = min(len(relevantPosts), count)
+            if relevantCount > 0:
+                resultFuture.set_result(relevantPosts[-relevantCount:])
+            return subscriber
+        self.subscribers.add(subscriber)
+        return subscriber
         
-    def cancelWait(self, future):
-        self.subscribers.remove(future)
-        future.set_result([])
+    def cancelWait(self, subscriber):
+        subscriber[1].set_result([])
+        self.subscribers.remove(subscriber)
         
     def newMessages(self, messages):
-        for future in self.subscribers:
-            future.set_result(messages)
-        self.subscribers = set()
-        self.cache.extend(messages)
-        if len(self.cache) > self.cacheSize:
-            self.cache = self.cache[-self.cacheSize:]
-
+        for subscriber in set(self.subscribers):
+            relevantPosts = PostBuffer.getRelevantPosts(messages, subscriber[0])
+            if len(relevantPosts) > 0:
+                subscriber[1].set_result(relevantPosts)
+                self.subscribers.discard(subscriber)
+        for message in messages:
+            self.cache[message["ID"]] = message
+            
+    def addLike(self, postID):
+        if postID in self.cache.keys():
+            self.changeLike(postID, self.cache[postID] + 1)
+    
+    def removeLike(self, postID):
+        if postID in self.cache.keys():
+            self.changeLike(postID, self.cache[postID] - 1)
+    
+    def changeLike(self, postID, likes):
+        post = dict(self.cache[postID])
+        post["Likes"] = likes
+        self.newMessages([post])
+        
 class JsonHandler(tornado.web.RequestHandler):
     """Request handler where requests and responses speak JSON."""
     def prepare(self):
@@ -57,7 +77,7 @@ class JsonHandler(tornado.web.RequestHandler):
     def set_default_headers(self):
         self.set_header('Content-Type', 'application/json')
 
-    '''def write_error(self, status_code, **kwargs):
+    def write_error_custom(self, status_code, **kwargs):
         if 'message' not in kwargs:
             if status_code == 405:
                 kwargs['message'] = 'Invalid HTTP method.'
@@ -65,73 +85,54 @@ class JsonHandler(tornado.web.RequestHandler):
                 kwargs['message'] = 'Unknown error.'
 
         self.response = kwargs
-        self.write_json()'''
+        self.write_json()
 
     def write_json(self):
         output = json.dumps(self.response)
-        self.write(output)
-        
-class WeatherHandler(JsonHandler):
-
-    apikey = "9ad1eeb07ab80737"
-    baseUrl = "http://api.wunderground.com/api/" + apikey
-    
-    @gen.coroutine
-    def get(self):
-        lat = self.get_argument("lat", None)
-        lon = self.get_argument("lon", None)
-        weatherFuture = Future()
-        if lat is None or lon is None:
-            weatherFuture.set_result({"Weather": None, "Temperature": None})
-        else:
-            if useMockup:
-                weatherFuture.set_result({"Weather": "Overcast", "Temperature": 69})
-            else:
-                handler = lambda response : WeatherHandler.handleResponse(weatherFuture, response)
-                query = "%s/%s/q/%s,%s.json"%(WeatherHandler.baseUrl, "conditions", lat, lon)
-                httpClient.fetch(query, handler)
-        self.response = yield weatherFuture
-        self.write_json()
-        
-    def handleResponse(future, response):
-        json_data = tornado.escape.json_decode(response.body)
-        current_observation = json_data["current_observation"]
-        temp = int(current_observation["temp_f"])
-        weather = current_observation["weather"]
-        future.set_result({"Weather": weather, "Temperature": temp})
-        
+        self.write(output)        
 
 class PostHandler(JsonHandler):
     @gen.coroutine
     def get(self):
         try:
-            count = int(self.get_argument("count", 0, True))
-            self.future = globalPostBuffer.waitForMessages(count=count)
-            messages = yield self.future
-            if self.request.connection.stream.closed():
-                return
-            self.response = {"data": messages}
-            self.write_json()
+            userID = self.get_argument("UserID", None, True)
+            if userID is None or userID not in userActivity.keys():
+                self.write_error_custom(401, {"message": "Unauthorized request"})
+            else:
+                count = int(self.get_argument("count", 0, True))
+                conditionsDict = userActivity[userID]["Conditions"]
+                conditionsPayload = (conditionsDict["Weather"], conditionsDict["Temperature"])
+                self.subscriber = globalPostBuffer.waitForMessages(conditionsPayload, count=count)
+                messages = yield self.subscriber[1]
+                if self.request.connection.stream.closed():
+                    return
+                self.response = {"data": messages}
+                self.write_json()
         except Exception as e:
             print("Error: " + str(e))
         
     @gen.coroutine
     def post(self):
-        global data
-        msg = self.request.arguments["Message"]
-        weather = self.request.arguments["Weather"]
-        temp = self.request.arguments["Temperature"]
-        newPost = PostHandler.buildPost(msg, weather, int(temp))
-        future = Future()
-        future.set_result(newPost)
-        result = yield future
-        globalPostBuffer.newMessages([result])
-        self.set_status(200)
-        self.response = {"error": ""}
-        self.write_json()
+        userID = self.request.arguments.get("UserID", None)
+        if userID is None or userID not in userActivity.keys():
+            self.write_error_custom(401, {"message": "Unauthorized request"})
+        else:
+            global data
+            msg = self.request.arguments["Message"]
+            conditions = userActivity[userID]["Conditions"]
+            weather = conditions["Weather"]
+            temp = conditions["Temperature"]
+            newPost = PostHandler.buildPost(msg, weather, temp)
+            future = Future()
+            future.set_result(newPost)
+            result = yield future
+            globalPostBuffer.newMessages([result])
+            self.set_status(200)
+            self.response = {"error": ""}
+            self.write_json()
         
     def on_connection_close(self):
-        globalPostBuffer.cancelWait(self.future)
+        globalPostBuffer.cancelWait(self.subscriber)
         
     def buildPost(msg, weather, temp):
         global id
@@ -142,6 +143,85 @@ class PostHandler(JsonHandler):
     def getISODate():
         date = datetime.datetime.utcnow().isoformat().split('.')[0]
         return '%sZ'%date
+        
+class LikeHandler(JsonHandler):
+    @gen.coroutine
+    def post(self):
+        userID = self.request.arguments.get("UserID", None)
+        if userID is None or userID not in userActivity.keys():
+            self.write_error_custom(401, {"message": "Unauthorized request"})
+        else:
+            postID = self.request.arguments.get("PostID", None)
+            if postID is None:
+                self.write_error_custom(400, {"message": "Bad Post ID"})
+            else:
+                liked = postID in userActivity[userID]["Liked"]
+                if liked:
+                    userActivity[userID]["Liked"].remove(postID)
+                    globalPostBuffer.removeLike(postID)
+                else:
+                    userActivity[userID]["Liked"].add(postID)
+                    globalPostBuffer.addLike(postID)
+
+                likeFuture = Future()
+                likeFuture.set_result(not liked)
+                result = yield likeFuture
+                self.response = {"Liked": result}
+                self.write_json()
+        
+class UserHandler(JsonHandler):
+    apikey = "9ad1eeb07ab80737"
+    baseUrl = "http://api.wunderground.com/api/" + apikey
+    
+    @gen.coroutine
+    def get(self):
+        userFuture = Future()
+        
+        # determine guid
+        guid = None
+        while guid is None or str(guid) in userActivity.keys():
+            guid = uuid.uuid4()
+            
+        # get and set user data
+        ip = self.request.remote_ip
+        self.getLocation(ip, lambda response: self.getConditions(response.body, lambda lat, lon, response2: self.setUserFuture(userFuture, str(guid), lat, lon, response2.body)))
+        userEntry = yield userFuture
+        userID = userEntry["UserID"]
+        userActivity[userID] = userEntry
+        self.response = {"UserID": userID}
+        self.write_json()
+        
+    def getLocation(self, ip, handler):
+        if ip is None:
+            query = "https://ipinfo.io/json"
+        else:
+            query = "https://ipinfo.io/%s/json"%ip
+        httpClient.fetch(query, lambda response : self.locationHandler(response, handler))
+        
+    def locationHandler(self, response, handler):
+        json_ipinfo = tornado.escape.json_decode(response.body)
+        if "bogon" in json_ipinfo and json_ipinfo["bogon"]:
+            self.getLocation(None, handler)
+        else:
+            handler(response)
+    
+    def getConditions(self, ipinfo, handler):
+        json_ipinfo = tornado.escape.json_decode(ipinfo)
+        locSplit = json_ipinfo["loc"].split(",")
+        lat = float(locSplit[0])
+        lon = float(locSplit[1])
+        
+        query = "%s/%s/q/%s,%s.json"%(UserHandler.baseUrl, "conditions", lat, lon)
+        httpClient.fetch(query, lambda response: handler(lat, lon, response))
+    
+    def setUserFuture(self, userFuture, userID, lat, lon, fullConditions):
+        json_fullConditions = tornado.escape.json_decode(fullConditions)
+        current_observation = json_fullConditions["current_observation"]
+        temp = int(current_observation["temp_f"])
+        weather = current_observation["weather"]
+        
+        userFuture.set_result({"UserID": userID, "Loc": {"Lat": lat, "Lon": lon}, "Conditions": {"Weather": weather, "Temperature": temp}, "Liked": set()})
+        
 
 root = os.path.dirname(__file__)
 port = 8888
@@ -152,7 +232,7 @@ settings = {
     "xsrf_cookies": True,
 }
 application = tornado.web.Application([
-    (r"/api/weather", WeatherHandler),
+    (r"/api/checkin", UserHandler),
     (r"/api/posts/submit", PostHandler),
     (r"/api/posts", PostHandler),
     (r"/(.*)", tornado.web.StaticFileHandler, {"path": root, "default_filename": "public/index.html"}),

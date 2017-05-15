@@ -1,46 +1,17 @@
-var Location = require("../model/Location");
 var Button = require("react-bootstrap/lib/Button");
 var FormGroup = require("react-bootstrap/lib/FormGroup");
 var ControlLabel = require("react-bootstrap/lib/ControlLabel");
 var FormControl = require("react-bootstrap/lib/FormControl");
 
-function getLocation(onSuccess) {
-    $.get("http://ipinfo.io/json", function (response) {
-        var locs = response.loc.split(",")
-        var lat = parseFloat(locs[0].trim())
-        var lon = parseFloat(locs[1].trim())
-        onSuccess(new Location(lat, lon));
-    });
-    return null;
-}
-
-
-function getWeatherData(loc, onSuccess) {
-    if (loc != null) {
-        $.get("/api/weather?lat=" + loc.latitude.toString() + "&lon=" + loc.longitude.toString(), function(response) {
-            onSuccess(response);
-        });
-    }
-}
-
-function buildPost(message, weatherData) {    
+function buildPost(message) {    
     return {
-        Message: message,
-        Weather: weatherData['Weather'],
-        Temperature: weatherData['Temperature']
+        Message: message
     }
 }
 
 var PostForm = React.createClass({
     getInitialState: function() {
-        return ({text: '', location: null});
-    },
-    componentDidMount: function() {
-        var self = this;
-        var onSuccess = function(loc) {
-            self.setState({location: loc});
-        };
-        getLocation(onSuccess);
+        return ({text: ''});
     },
     handleAuthorChange: function(e) {
         this.setState({author: e.target.value});
@@ -54,14 +25,11 @@ var PostForm = React.createClass({
         if (!text) {
             return;
         }
-        self = this;
-        getWeatherData(this.state.location, function(weatherData) {
-            var post = buildPost(text, weatherData);
-            if (post != null) {
-                self.props.onPostSubmit(post)
-                self.setState({text: ''});
-            }
-        });
+        var post = buildPost(text);
+        if (post != null) {
+            this.props.onPostSubmit(post)
+            this.setState({text: ''});
+        }
     },
     render: function() {
         return (

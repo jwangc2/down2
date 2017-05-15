@@ -23,6 +23,7 @@ var PostList = React.createClass({
                     <Post
                         time={postEntry.Time}
                         postID={postEntry.ID}
+                        likes={postEntry.Likes}
                         liked={self.state.liked.has(postEntry.ID)}
                         onLike={self.handleLike}
                         >

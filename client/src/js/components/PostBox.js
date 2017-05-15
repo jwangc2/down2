@@ -6,10 +6,27 @@ var PostList = require("./PostList");
 var PostForm = require("./PostForm");
 
 var PostBox = React.createClass({
+    getInitialState: function() {
+        return {data: [], UserID: null};
+    },
+    checkinWithServer: function(successHandler) {
+        $.ajax({
+            url: this.props.checkinUrl,
+            dataType: 'json',
+            cache: false,
+            success: function(data) {
+                this.setState({UserID: data["UserID"]});
+                successHandler();
+            }.bind(this),
+            error: function(xhr, status, err) {
+                console.log(this.props.checkinUrl, status, err.toString());
+            }.bind(this)
+        });
+    },
     loadPostsFromServer: function(count) {
-        var query = "";
+        var query = "?UserID=" + this.state.UserID;
         if (typeof(count)!=='undefined') {
-            query = "?count=" + count.toString();
+            query = query + "&count=" + count.toString();
         }
         $.ajax({
             url: this.props.pollUrl + query,
@@ -25,13 +42,15 @@ var PostBox = React.createClass({
             }.bind(this)
         });
     },
-    handlePostsSubmit: function(comment) {
+    handlePostsSubmit: function(post) {
+        var mData = post
+        mData["UserID"] = this.state.UserID;
         $.ajax({
             url: this.props.submitUrl,
             dataType: 'json',
             contentType: "application/json; charset=utf-8",
             type: "POST",
-            data: JSON.stringify(comment),
+            data: JSON.stringify(mData),
             success: function(data) {
                 // do nothing
             }.bind(this),
@@ -40,11 +59,11 @@ var PostBox = React.createClass({
             }.bind(this)
         })
     },
-    getInitialState: function() {
-        return {data: []};
-    },
     componentDidMount: function() {
-        this.loadPostsFromServer(this.props.batchSize);
+        var self = this;
+        self.checkinWithServer(function() {
+            self.loadPostsFromServer(self.props.batchSize);
+        });        
     },
     render: function() {
         return (
