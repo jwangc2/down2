@@ -8,9 +8,10 @@ class UserHandler(JsonHandler):
     apikey = "9ad1eeb07ab80737"
     baseUrl = "http://api.wunderground.com/api/" + apikey
     
-    def initialize(self, postBuffer, httpClient, userActivity):
+    def initialize(self, postBuffer, httpClient, userActivity, weatherCategories):
         self.userActivity = userActivity
         self.httpClient = httpClient
+        self.weatherCategories = weatherCategories
     
     @gen.coroutine
     def get(self):
@@ -58,5 +59,11 @@ class UserHandler(JsonHandler):
         current_observation = json_fullConditions["current_observation"]
         temp = int(current_observation["temp_f"])
         weather = current_observation["weather"]
+        category = self.getWeatherCategory(weather)
+        userFuture.set_result({"UserID": userID, "Loc": {"Lat": lat, "Lon": lon}, "Conditions": {"Weather": category.name, "Temperature": temp}, "Liked": set()})
         
-        userFuture.set_result({"UserID": userID, "Loc": {"Lat": lat, "Lon": lon}, "Conditions": {"Weather": weather, "Temperature": temp}, "Liked": set()})
+    def getWeatherCategory(self, phrase):
+        for category in self.weatherCategories:
+            if category.containsPhrase(phrase):
+                return category
+        return self.weatherCategories[-1]

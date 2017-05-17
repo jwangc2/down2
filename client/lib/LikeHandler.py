@@ -4,7 +4,7 @@ from tornado.concurrent import Future
 from tornado import gen
 
 class LikeHandler(JsonHandler):
-    def initialize(self, postBuffer, httpClient, userActivity):
+    def initialize(self, postBuffer, httpClient, userActivity, weatherCategories):
         self.postBuffer = postBuffer
         self.userActivity = userActivity        
 
