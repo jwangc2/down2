@@ -8,6 +8,7 @@ from lib.PostBuffer import PostBuffer
 from lib.PostHandler import PostHandler
 from lib.LikeHandler import LikeHandler
 from lib.UserHandler import UserHandler
+from lib.EmergencyHandler import EmergencyHandler
 from lib.WeatherCategory import WeatherCategory
 
 def buildWeatherCategories(fname):
@@ -57,6 +58,7 @@ if __name__ == '__main__':
         (r"/api/posts/submit", PostHandler, globalArgs),
         (r"/api/posts/like", LikeHandler, globalArgs),
         (r"/api/posts", PostHandler, globalArgs),
+        (r"/api/emergency", EmergencyHandler, globalArgs),
         (r"/(.*)", tornado.web.StaticFileHandler, {"path": root, "default_filename": "public/index.html"}),
     ])
     
