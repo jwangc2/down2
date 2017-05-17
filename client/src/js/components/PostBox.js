@@ -67,17 +67,17 @@ var PostBox = React.createClass({
             }.bind(this)
         });
     },
-    loadEmergenciesFromServer: function() {
+    loadEmergenciesFromServer: function(count) {
         var query = "?UserID=" + this.state.UserID;
+        if (typeof(count)!=='undefined') {
+            query = query + "&count=" + count.toString();
+        }
         $.ajax({
             url: this.props.pollEmergenciesUrl + query,
             dataType: 'json',
             cache: false,
             success: function(data) {
-                this.updateData(this.state.emergencies, data["emergencies"], function(oldDatum, newDatum) {
-                    return (oldDatum["ID"] == newDatum["ID"]);
-                });
-                this.setState({emergencies: this.state.emergencies});
+                this.setState({emergencies: data["emergencies"]});
                 this.loadEmergenciesFromServer();
             }.bind(this),
             error: function(xhr, status, err) {
@@ -126,7 +126,7 @@ var PostBox = React.createClass({
         var self = this;
         self.checkinWithServer(function() {
             self.loadPostsFromServer(self.props.batchSize);
-            self.loadEmergenciesFromServer();
+            self.loadEmergenciesFromServer(-1);
         });        
     },
     render: function() {

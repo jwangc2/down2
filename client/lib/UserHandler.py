@@ -8,7 +8,7 @@ class UserHandler(JsonHandler):
     apikey = "9ad1eeb07ab80737"
     baseUrl = "http://api.wunderground.com/api/" + apikey
     
-    def initialize(self, postBuffer, httpClient, userActivity, weatherCategories):
+    def initialize(self, postBuffer, emergencyBuffer, httpClient, userActivity, weatherCategories):
         self.userActivity = userActivity
         self.httpClient = httpClient
         self.weatherCategories = weatherCategories

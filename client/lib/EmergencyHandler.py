@@ -4,48 +4,47 @@ import tornado.web
 from tornado.concurrent import Future
 from tornado import gen
 import time
+import math
 
 class EmergencyHandler(JsonHandler):
     
-    def initialize(self, postBuffer, httpClient, userActivity, weatherCategories):
+    def initialize(self, postBuffer, emergencyBuffer, httpClient, userActivity, weatherCategories):
         self.postBuffer = postBuffer
+        self.emergencyBuffer = emergencyBuffer
         self.userActivity = userActivity
+        self.subscriber = None
         
-    def get(self):
-        self.response = {"emergencies": [
-            {"ID": 0, "Source": "Washington Post", "Message": "Hi"},
-            {"ID": 1, "Source": "Your momma", "Message": "is..."}
-        ]}
-        time.sleep(5)
-        self.write_json()
-
-    '''@gen.coroutine
-    def get(self):
-        try:
-            userID = self.get_argument("UserID", None, True)
-            if userID is None or userID not in self.userActivity.keys():
-                self.write_error_custom(401, message="Unauthorized request")
-            else:
-                # Retrieve our subscriber (conditions, future)
-                count = int(self.get_argument("count", 0, True))
-                conditionsDict = self.userActivity[userID]["Conditions"]
-                conditionsPayload = (conditionsDict["Weather"], conditionsDict["Temperature"])
-                self.subscriber = self.postBuffer.subscribe(lambda post : PostHandler.postRelevantFn(post, conditionsPayload), count=count)
+    @gen.coroutine
+    def get(self):           
+        userID = self.get_argument("UserID", None, True)
+        if userID is None or userID not in self.userActivity.keys():
+            self.write_error_custom(401, message="Unauthorized request")
+        else:
+            count = int(self.get_argument("count", 0, True))
+            # Yield for new messages
+            self.subscriber = self.emergencyBuffer.subscribe(lambda post : EmergencyHandler.emergencyRelevantFn(post, userID), count=count)
+            emergencies = yield self.emergencyBuffer.getFuture(self.subscriber)
+            if self.request.connection.stream.closed():
+                return
                 
-                # Yield for new messages
-                messages = yield self.postBuffer.getFuture(self.subscriber)
-                if self.request.connection.stream.closed():
-                    return
-                    
-                # Fulfill the long poll
-                self.response = {"data": messages}
-                self.write_json()
-        except Exception as e:
-            print("Error: " + str(e))'''
-            
+            # Fulfill the long poll
+            print(emergencies)
+            self.response = {"emergencies": emergencies}
+            self.write_json()
+        
+    def emergencyRelevantFn(emergency, userID):
+        userLat = self.userActivity[userID]["Loc"]["Lat"]
+        userLon = self.userActivity[userID]["Loc"]["Lon"]
+        
+        eLat = emergency["Latitude"]
+        eLon = emergency["Longitude"]
+        eRad = emergency["Radius"]
+        
+        return ((userLat - eLat) ** 2) + ((userLon - eLon) ** 2) <= eRad ** 2
+
     def emergencyRelevantFn(emergency, conditions):
         return True
         
     def on_connection_close(self):
-        #self.postBuffer.cancelWait(self.subscriber)
-        pass
+        if self.subscriber is not None:
+            self.emergencyBuffer.cancelWait(self.subscriber)

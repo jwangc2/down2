@@ -5,6 +5,7 @@ import tornado.ioloop
 import tornado.web
 from tornado.httpclient import AsyncHTTPClient
 from lib.PostBuffer import PostBuffer
+from lib.EmergencyBuffer import EmergencyBuffer
 from lib.PostHandler import PostHandler
 from lib.LikeHandler import LikeHandler
 from lib.UserHandler import UserHandler
@@ -27,19 +28,58 @@ def buildWeatherCategories(fname):
                     if len(row[i]) > 0:
                         categories[i].addPhrase(row[i])
             isFirst = False
-            
     return categories
+    
+def getEmergencyData(mHttpClient, url, emergencyBuffer):
+    print("Fetching emergency data...")
+    mHttpClient.fetch(url, lambda response : handleEmergencyResponse(response, emergencyBuffer))
+    
+def handleEmergencyResponse(response, emergencyBuffer):
+    # Parse
+    emergencies = []
+    responseJson = tornado.escape.json_decode(response.body)
+    entry = responseJson["feed"]["entry"]
+    for row in entry:
+        csvRow = row["content"]["$t"]
+        rowDict = parseDict(csvRow)
+        emergency = emergencyBuffer.buildEmergency(
+            float(rowDict["lat"]),
+            float(rowDict["lon"]),
+            float(rowDict["radius"]),
+            rowDict["source"],
+            rowDict["message"]
+        )
+        emergencies.append(emergency)
+        
+    # publish to the EmergencyBuffer
+    if len(emergencies) > 0:
+        emergencyBuffer.publish(emergencies, overwrite=True)
+    
+def parseDict(dictStr, delim=","):
+    outDict = {}
+    strArr = dictStr.split(delim)
+    for entryStr in strArr:
+        kvp = entryStr.split(":")
+        key = kvp[0].strip(" ")
+        val = kvp[1].strip(" ")
+        outDict[key] = val
+    return outDict
+    
+    
 if __name__ == '__main__':
     # Setup the data
     data = {}
     globalPostBuffer = PostBuffer()
+    globalEmergencyBuffer = EmergencyBuffer()
     httpClient = AsyncHTTPClient()
     globalArgs = {
         "postBuffer": globalPostBuffer,
+        "emergencyBuffer": globalEmergencyBuffer,
         "httpClient": httpClient,
         "userActivity": {},
         "weatherCategories": buildWeatherCategories("./weather_categories.csv")
     }
+    emergencyUrl = "https://spreadsheets.google.com/feeds/list/1GceRIgyoGZTKfC7mx1Pl4D0GoNGJugTMSajYfdtZOmE/od6/public/basic?alt=json"
     
     # Settings
     root = os.path.dirname(__file__)
@@ -61,12 +101,17 @@ if __name__ == '__main__':
         (r"/api/emergency", EmergencyHandler, globalArgs),
         (r"/(.*)", tornado.web.StaticFileHandler, {"path": root, "default_filename": "public/index.html"}),
     ])
+    emergencyCallback = lambda : getEmergencyData(httpClient, emergencyUrl, globalEmergencyBuffer)
+    emergencyPoller = tornado.ioloop.PeriodicCallback(emergencyCallback, 1 * 60000)
     
     # Run
     try:
+        emergencyCallback()
+        emergencyPoller.start()
         globalPostBuffer.publish([globalPostBuffer.buildPost("[System] Welcome!", "Sunny", 79)])
         application.listen(port)
         tornado.ioloop.IOLoop.instance().start()
     except KeyboardInterrupt as e:
         print(str(e))
+        emergencyPoller.stop()
         httpClient.close()

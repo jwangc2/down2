@@ -8,9 +8,10 @@ class PostHandler(JsonHandler):
     timeRangeSeconds = 2 * 3600
     temperatureRange = 5
     
-    def initialize(self, postBuffer, httpClient, userActivity, weatherCategories):
+    def initialize(self, postBuffer, emergencyBuffer, httpClient, userActivity, weatherCategories):
         self.postBuffer = postBuffer
         self.userActivity = userActivity
+        self.subscriber = None
 
     @gen.coroutine
     def get(self):
@@ -71,4 +72,5 @@ class PostHandler(JsonHandler):
             and temperatureDiff <= PostHandler.temperatureRange)
         
     def on_connection_close(self):
-        self.postBuffer.cancelWait(self.subscriber)
+        if self.subscriber is not None:
+            self.postBuffer.cancelWait(self.subscriber)
