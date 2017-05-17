@@ -77,7 +77,14 @@ var PostBox = React.createClass({
             dataType: 'json',
             cache: false,
             success: function(data) {
-                this.setState({emergencies: data["emergencies"]});
+                var emergencyData = data["emergencies"];
+                var eDict = {};
+                var e;
+                for (var i = 0; i < emergencyData.length; i++) {
+                    e = emergencyData[i];
+                    eDict[e["ID"]] = e;
+                }
+                this.setState({emergencies: eDict});
                 this.loadEmergenciesFromServer();
             }.bind(this),
             error: function(xhr, status, err) {
@@ -122,6 +129,17 @@ var PostBox = React.createClass({
             }.bind(this)
         });
     },
+    handleEmergencyDismissed: function(eID) {
+        var self = this;
+        var filtered = Object.keys(this.state.emergencies).reduce(function(filtered, key) {
+            if (self.state.emergencies[key]["ID"] != eID) {
+                filtered[key] = self.state.emergencies[key];
+            }
+            return filtered;
+        }, {});
+        
+        this.setState({emergencies: filtered});
+    },
     componentDidMount: function() {
         var self = this;
         self.checkinWithServer(function() {
@@ -137,7 +155,7 @@ var PostBox = React.createClass({
                         <Panel header="DownTo" className="postBox">
                             <PostForm onPostSubmit={this.handlePostsSubmit} />
                             <Well>
-                                <EmergencyList data={this.state.emergencies}></EmergencyList>
+                                <EmergencyList onEmergencyDismissed={this.handleEmergencyDismissed} data={this.state.emergencies}></EmergencyList>
                                 <PostList onPostLiked={this.handlePostLiked} data={this.state.posts}/>
                             </Well>
                         </Panel>

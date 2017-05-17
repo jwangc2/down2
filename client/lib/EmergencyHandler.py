@@ -28,7 +28,6 @@ class EmergencyHandler(JsonHandler):
                 return
                 
             # Fulfill the long poll
-            print(emergencies)
             self.response = {"emergencies": emergencies}
             self.write_json()
         

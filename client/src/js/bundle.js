@@ -12001,7 +12001,14 @@ var PostBox = React.createClass({
             dataType: 'json',
             cache: false,
             success: function (data) {
-                this.setState({ emergencies: data["emergencies"] });
+                var emergencyData = data["emergencies"];
+                var eDict = {};
+                var e;
+                for (var i = 0; i < emergencyData.length; i++) {
+                    e = emergencyData[i];
+                    eDict[e["ID"]] = e;
+                }
+                this.setState({ emergencies: eDict });
                 this.loadEmergenciesFromServer();
             }.bind(this),
             error: function (xhr, status, err) {
@@ -12046,6 +12053,17 @@ var PostBox = React.createClass({
             }.bind(this)
         });
     },
+    handleEmergencyDismissed: function handleEmergencyDismissed(eID) {
+        var self = this;
+        var filtered = Object.keys(this.state.emergencies).reduce(function (filtered, key) {
+            if (self.state.emergencies[key]["ID"] != eID) {
+                filtered[key] = self.state.emergencies[key];
+            }
+            return filtered;
+        }, {});
+
+        this.setState({ emergencies: filtered });
+    },
     componentDidMount: function componentDidMount() {
         var self = this;
         self.checkinWithServer(function () {
@@ -12070,7 +12088,7 @@ var PostBox = React.createClass({
                         React.createElement(
                             Well,
                             null,
-                            React.createElement(EmergencyList, { data: this.state.emergencies }),
+                            React.createElement(EmergencyList, { onEmergencyDismissed: this.handleEmergencyDismissed, data: this.state.emergencies }),
                             React.createElement(PostList, { onPostLiked: this.handlePostLiked, data: this.state.posts })
                         )
                     )
@@ -12111,16 +12129,10 @@ ReactDOM.render(React.createElement(PostBox, {
 var Emergency = React.createClass({
     displayName: "Emergency",
 
-    getInitialState: function getInitialState() {
-        return { closed: false };
-    },
     onClose: function onClose() {
-        this.setState({ closed: true });
+        this.props.onClose(this.props.eID);
     },
     render: function render() {
-        if (this.state.closed) {
-            return null;
-        }
         return React.createElement(
             "div",
             { className: "emergency" },
@@ -12159,7 +12171,8 @@ var EmergencyList = React.createClass({
 
     render: function render() {
         var self = this;
-        var eNodes = this.props.data.map(function (dataEntry) {
+        var eNodes = Object.keys(this.props.data).map(function (eID) {
+            var dataEntry = self.props.data[eID];
             return React.createElement(
                 ListGroupItem,
                 {
@@ -12168,8 +12181,10 @@ var EmergencyList = React.createClass({
                     bsStyle: "danger"
                 },
                 React.createElement(Emergency, {
+                    eID: eID,
                     src: dataEntry["Source"],
-                    msg: dataEntry["Message"]
+                    msg: dataEntry["Message"],
+                    onClose: self.props.onEmergencyDismissed
                 })
             );
         });

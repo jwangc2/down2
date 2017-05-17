@@ -5,7 +5,8 @@ var Emergency = require("./Emergency");
 var EmergencyList = React.createClass({
     render: function() {
         var self = this;
-        var eNodes = this.props.data.map(function(dataEntry) {
+        var eNodes = Object.keys(this.props.data).map(function(eID) {
+            var dataEntry = self.props.data[eID];
             return (
                 <ListGroupItem
                     key={"Emergency-" + dataEntry["ID"]}
@@ -13,8 +14,10 @@ var EmergencyList = React.createClass({
                     bsStyle="danger"
                     >
                     <Emergency
+                        eID={eID}
                         src={dataEntry["Source"]}
                         msg={dataEntry["Message"]}
+                        onClose={self.props.onEmergencyDismissed}
                         >
                     </Emergency>
                 </ListGroupItem>
