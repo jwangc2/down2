@@ -12,7 +12,7 @@ var Post = React.createClass({
                 <a href="#" onClick={this.handleLike} style={{marginRight: "10px"}}><i className={this.props.liked ? "fa fa-heart": "fa fa-heart-o"}></i></a>
                 <span>{this.props.likes.toString() + "..."} {this.props.time}: {this.rawMarkup()}</span>
             </div>
-       )
+        );
    } 
 });
 

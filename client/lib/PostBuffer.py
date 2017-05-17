@@ -24,7 +24,7 @@ class PostBuffer(EntryBuffer):
         self.id = 0
         
     def entrySortKeyFn(self, entry):
-        return PostBuffer.postDateKey
+        return PostBuffer.postDateKey(entry)
         
     def entryIDfn(self, entry):
         return entry["ID"]

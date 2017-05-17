@@ -3,6 +3,7 @@ from lib.PostBuffer import PostBuffer
 import tornado.web
 from tornado.concurrent import Future
 from tornado import gen
+import time
 
 class EmergencyHandler(JsonHandler):
     
@@ -12,9 +13,10 @@ class EmergencyHandler(JsonHandler):
         
     def get(self):
         self.response = {"emergencies": [
-            {"src": "Washington Post", "msg": "Hi"},
-            {"src": "Your momma", "msg": "is..."}
+            {"ID": 0, "Source": "Washington Post", "Message": "Hi"},
+            {"ID": 1, "Source": "Your momma", "Message": "is..."}
         ]}
+        time.sleep(5)
         self.write_json()
 
     '''@gen.coroutine

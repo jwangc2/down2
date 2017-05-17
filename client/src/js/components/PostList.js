@@ -1,6 +1,5 @@
 var ListGroup = require("react-bootstrap/lib/ListGroup");
 var ListGroupItem = require("react-bootstrap/lib/ListGroupItem");
-var Well = require("react-bootstrap/lib/Well");
 var Post = require("./Post");
 
 var PostList = React.createClass({
@@ -24,7 +23,7 @@ var PostList = React.createClass({
     },
     render: function() {
         var self = this;
-        var commentNodes = this.props.data.map(function(postEntry) {
+        var postNodes = this.props.data.map(function(postEntry) {
             return (
                 <ListGroupItem key={"Post-" + postEntry["ID"]}>
                     <Post
@@ -40,11 +39,9 @@ var PostList = React.createClass({
             );
         });
         return (
-            <Well className="postList">
-                <ListGroup>
-                    {commentNodes.reverse()}
-                </ListGroup>
-            </Well>
+            <ListGroup className="postList">
+                {postNodes.reverse()}
+            </ListGroup>
         );
     }
 });

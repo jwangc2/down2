@@ -2,12 +2,14 @@ var Panel = require("react-bootstrap/lib/Panel");
 var Grid = require("react-bootstrap/lib/Grid");
 var Row = require("react-bootstrap/lib/Row");
 var Col = require("react-bootstrap/lib/Col");
+var Well = require("react-bootstrap/lib/Well");
 var PostList = require("./PostList");
 var PostForm = require("./PostForm");
+var EmergencyList = require("./EmergencyList");
 
 var PostBox = React.createClass({
     getInitialState: function() {
-        return {data: [], UserID: null};
+        return {posts: [], emergencies: [], UserID: null};
     },
     checkinWithServer: function(successHandler) {
         $.ajax({
@@ -23,37 +25,60 @@ var PostBox = React.createClass({
             }.bind(this)
         });
     },
+    updateData: function(oldData, newData, matchFn) {
+        var match, i, j;
+        for (i = 0; i < newData.length; i++) {
+            match = -1;
+            j = 0;
+            while(j < oldData.length && match == -1) {
+                if (matchFn(oldData[j], newData[i])) {
+                    match = j;
+                }
+                j += 1;
+            }
+            if (match == -1) {
+                // append
+                oldData.push(newData[i]);
+            } else {
+                // update
+                oldData[match] = newData[i];
+            }
+        }
+    },
     loadPostsFromServer: function(count) {
         var query = "?UserID=" + this.state.UserID;
         if (typeof(count)!=='undefined') {
             query = query + "&count=" + count.toString();
         }
         $.ajax({
-            url: this.props.pollUrl + query,
+            url: this.props.pollPostsUrl + query,
             dataType: 'json',
             cache: false,
             success: function(data) {
-                var newData = data["data"];
-                var match, i, j;
-                for (i = 0; i < newData.length; i++) {
-                    match = -1;
-                    j = 0;
-                    while(j < this.state.data.length && match == -1) {
-                        if (this.state.data[j]["ID"] == newData[i]["ID"]) {
-                            match = j;
-                        }
-                        j += 1;
-                    }
-                    if (match == -1) {
-                        // append
-                        this.state.data.push(newData[i]);
-                    } else {
-                        // update
-                        this.state.data[match] = newData[i];
-                    }
-                }
-                this.setState({data: this.state.data});
+                this.updateData(this.state.posts, data["data"], function(oldDatum, newDatum) {
+                    return (oldDatum["ID"] == newDatum["ID"]);
+                });
+                this.setState({posts: this.state.posts});
                 this.loadPostsFromServer();
+            }.bind(this),
+            error: function(xhr, status, err) {
+                console.error(this.props.url, status, err.toString());
+                // todo: prompt user to refresh?
+            }.bind(this)
+        });
+    },
+    loadEmergenciesFromServer: function() {
+        var query = "?UserID=" + this.state.UserID;
+        $.ajax({
+            url: this.props.pollEmergenciesUrl + query,
+            dataType: 'json',
+            cache: false,
+            success: function(data) {
+                this.updateData(this.state.emergencies, data["emergencies"], function(oldDatum, newDatum) {
+                    return (oldDatum["ID"] == newDatum["ID"]);
+                });
+                this.setState({emergencies: this.state.emergencies});
+                this.loadEmergenciesFromServer();
             }.bind(this),
             error: function(xhr, status, err) {
                 console.error(this.props.url, status, err.toString());
@@ -101,6 +126,7 @@ var PostBox = React.createClass({
         var self = this;
         self.checkinWithServer(function() {
             self.loadPostsFromServer(self.props.batchSize);
+            self.loadEmergenciesFromServer();
         });        
     },
     render: function() {
@@ -110,7 +136,10 @@ var PostBox = React.createClass({
                     <Col mdOffset={3} md={6} sm={12}>
                         <Panel header="DownTo" className="postBox">
                             <PostForm onPostSubmit={this.handlePostsSubmit} />
-                            <PostList onPostLiked={this.handlePostLiked} data={this.state.data}/>
+                            <Well>
+                                <EmergencyList data={this.state.emergencies}></EmergencyList>
+                                <PostList onPostLiked={this.handlePostLiked} data={this.state.posts}/>
+                            </Well>
                         </Panel>
                     </Col>
                 </Row>
