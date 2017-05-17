@@ -31,7 +31,7 @@ def buildWeatherCategories(fname):
 if __name__ == '__main__':
     # Setup the data
     data = {}
-    globalPostBuffer = PostBuffer(data=data)
+    globalPostBuffer = PostBuffer()
     httpClient = AsyncHTTPClient()
     globalArgs = {
         "postBuffer": globalPostBuffer,
@@ -62,7 +62,7 @@ if __name__ == '__main__':
     
     # Run
     try:
-        globalPostBuffer.newMessages([globalPostBuffer.buildPost("[System] Welcome!", "Sunny", 79)])
+        globalPostBuffer.publish([globalPostBuffer.buildPost("[System] Welcome!", "Sunny", 79)])
         application.listen(port)
         tornado.ioloop.IOLoop.instance().start()
     except KeyboardInterrupt as e:

@@ -1,9 +1,13 @@
 from lib.JsonHandler import JsonHandler
+from lib.PostBuffer import PostBuffer
 import tornado.web
 from tornado.concurrent import Future
 from tornado import gen
 
 class PostHandler(JsonHandler):
+    timeRangeSeconds = 2 * 3600
+    temperatureRange = 5
+    
     def initialize(self, postBuffer, httpClient, userActivity, weatherCategories):
         self.postBuffer = postBuffer
         self.userActivity = userActivity
@@ -19,10 +23,10 @@ class PostHandler(JsonHandler):
                 count = int(self.get_argument("count", 0, True))
                 conditionsDict = self.userActivity[userID]["Conditions"]
                 conditionsPayload = (conditionsDict["Weather"], conditionsDict["Temperature"])
-                self.subscriber = self.postBuffer.waitForMessages(conditionsPayload, count=count)
+                self.subscriber = self.postBuffer.subscribe(lambda post : PostHandler.postRelevantFn(post, conditionsPayload), count=count)
                 
                 # Yield for new messages
-                messages = yield self.subscriber[1]
+                messages = yield self.postBuffer.getFuture(self.subscriber)
                 if self.request.connection.stream.closed():
                     return
                     
@@ -51,12 +55,20 @@ class PostHandler(JsonHandler):
             
             # ...and update the buffer (which triggers long poll updates)
             result = yield future
-            self.postBuffer.newMessages([result])
+            self.postBuffer.publish([result])
             
             # simple OK response
             self.set_status(200)
             self.response = {"error": ""}
             self.write_json()
+            
+    def postRelevantFn(post, conditions):
+        timeDiffSeconds = PostBuffer.getDateDiffSeconds(PostBuffer.getISODate(), post["Time"])
+        temperatureDiff = abs(post["Temperature"] - conditions[1])
+        return (post["Weather"] == conditions[0]
+            and timeDiffSeconds >= 0
+            and timeDiffSeconds <= PostHandler.timeRangeSeconds
+            and temperatureDiff <= PostHandler.temperatureRange)
         
     def on_connection_close(self):
         self.postBuffer.cancelWait(self.subscriber)

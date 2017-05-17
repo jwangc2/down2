@@ -1,22 +1,8 @@
 import datetime
+from lib.EntryBuffer import EntryBuffer
 from tornado.concurrent import Future
 
-class PostBuffer(object):
-    timeRangeSeconds = 2 * 3600
-    temperatureRange = 5
-        
-    def getRelevantPosts(postList, conditions):
-        relevantPosts = [post for post in postList if PostBuffer.postIsRelevant(post, conditions)]
-        return sorted(relevantPosts, key=PostBuffer.postDateKey)
-        
-    def postIsRelevant(post, conditions):
-        timeDiffSeconds = PostBuffer.getDateDiffSeconds(PostBuffer.getISODate(), post["Time"])
-        temperatureDiff = post["Temperature"] - conditions[1]
-        return (post["Weather"] == conditions[0]
-            and timeDiffSeconds >= 0
-            and timeDiffSeconds <= PostBuffer.timeRangeSeconds
-            and abs(temperatureDiff) <= PostBuffer.temperatureRange)
-            
+class PostBuffer(EntryBuffer):            
     def getISODate():
         date = datetime.datetime.utcnow().isoformat().split('.')[0]
         return '%sZ'%date
@@ -33,37 +19,15 @@ class PostBuffer(object):
         cleanTime = post["Time"].split("T")[1][:-2]
         return tuple(cleanTime.split(":"))
             
-    def __init__(self, data={}):
-        self.subscribers = set()
-        self.cache = data
-        self.id = len(data.keys())
+    def __init__(self):
+        super().__init__()
+        self.id = 0
         
-    def waitForMessages(self, conditions, count=0):
-        resultFuture = Future()
-        subscriber = (conditions, resultFuture)
-        pushed = False
-        if count > 0:
-            relevantPosts = PostBuffer.getRelevantPosts([post for key, post in self.cache.items()], conditions)
-            relevantCount = min(len(relevantPosts), count)
-            if relevantCount > 0:
-                resultFuture.set_result(relevantPosts[-relevantCount:])
-                pushed = True
-        if not pushed:
-            self.subscribers.add(subscriber)
-        return subscriber
+    def entrySortKeyFn(self, entry):
+        return PostBuffer.postDateKey
         
-    def cancelWait(self, subscriber):
-        subscriber[1].set_result([])
-        self.subscribers.remove(subscriber)
-        
-    def newMessages(self, messages):
-        for subscriber in set(self.subscribers):
-            relevantPosts = PostBuffer.getRelevantPosts(messages, subscriber[0])
-            if len(relevantPosts) > 0:
-                subscriber[1].set_result(relevantPosts)
-                self.subscribers.discard(subscriber)
-        for message in messages:
-            self.cache[message["ID"]] = message
+    def entryIDfn(self, entry):
+        return entry["ID"]
             
     def addLike(self, postID):
         if postID in self.cache.keys():
@@ -76,7 +40,7 @@ class PostBuffer(object):
     def changeLike(self, postID, likes):
         post = dict(self.cache[postID])
         post["Likes"] = likes
-        self.newMessages([post])
+        self.publish([post])
         
     def buildPost(self, msg, weather, temp):
         newPost = {"ID": self.id, "Message": msg, "Weather": weather, "Temperature": temp, "Time": PostBuffer.getISODate(), "Likes": 0}
