@@ -83,8 +83,8 @@ if __name__ == '__main__':
     
     # Settings
     root = os.path.dirname(__file__)
-    port = int(os.environ.get('OPENSHIFT_PYTHON_PORT', '8888'))
-    ip = os.environ.get('OPENSHIFT_PYTHON_IP', 'localhost')
+    port = int(os.environ.get('DOWN2_SERVICE_PORT', '8888'))
+    ip = os.environ.get('DOWN2_SERVICE_HOST', 'localhost')
     useMockup = False
 
     settings = {
