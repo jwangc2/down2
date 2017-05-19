@@ -102,7 +102,7 @@ if __name__ == '__main__':
         (r"/(.*)", tornado.web.StaticFileHandler, {"path": root, "default_filename": "public/index.html"}),
     ])
     emergencyCallback = lambda : getEmergencyData(httpClient, emergencyUrl, globalEmergencyBuffer)
-    emergencyPoller = tornado.ioloop.PeriodicCallback(emergencyCallback, 1 * 60000)
+    emergencyPoller = tornado.ioloop.PeriodicCallback(emergencyCallback, 5 * 60000)
     
     # Run
     try:
