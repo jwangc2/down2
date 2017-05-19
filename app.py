@@ -84,7 +84,7 @@ if __name__ == '__main__':
     # Settings
     root = os.path.dirname(__file__)
     port = int(os.environ.get('DOWN2_SERVICE_PORT', '8888'))
-    ip = os.environ.get('DOWN2_SERVICE_HOST', 'localhost')
+    ip = '0.0.0.0'
     useMockup = False
 
     settings = {
