@@ -63,6 +63,9 @@ var PostBox = React.createClass({
             }.bind(this),
             error: function(xhr, status, err) {
                 console.error(this.props.url, status, err.toString());
+                if (status == 504) {
+                    this.loadPostsFromServer();
+                }
                 // todo: prompt user to refresh?
             }.bind(this)
         });
@@ -89,6 +92,9 @@ var PostBox = React.createClass({
             }.bind(this),
             error: function(xhr, status, err) {
                 console.error(this.props.url, status, err.toString());
+                if (status == 504) {
+                    this.loadEmergenciesFromServer();
+                }
                 // todo: prompt user to refresh?
             }.bind(this)
         });
