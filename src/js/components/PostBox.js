@@ -155,7 +155,7 @@ var PostBox = React.createClass({
     },
     render: function() {
         return (
-            <Grid>
+            <Grid fluid={true}>
                 <Row>
                     <Col mdOffset={3} md={6} sm={12}>
                         <Panel header="DownTo" className="postBox">
