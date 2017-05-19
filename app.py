@@ -83,7 +83,8 @@ if __name__ == '__main__':
     
     # Settings
     root = os.path.dirname(__file__)
-    port = 8888
+    port = int(os.environ.get('OPENSHIFT_PYTHON_PORT', '8888'))
+    ip = os.environ.get('OPENSHIFT_PYTHON_IP', 'localhost')
     useMockup = False
 
     settings = {
@@ -109,7 +110,7 @@ if __name__ == '__main__':
         emergencyCallback()
         emergencyPoller.start()
         globalPostBuffer.publish([globalPostBuffer.buildPost("[System] Welcome!", "Sunny", 79)])
-        application.listen(port)
+        application.listen(port, ip)
         tornado.ioloop.IOLoop.instance().start()
     except KeyboardInterrupt as e:
         print(str(e))
