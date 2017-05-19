@@ -2,7 +2,7 @@ from lib.JsonHandler import JsonHandler
 import tornado.web
 from tornado.concurrent import Future
 from tornado import gen
-from Lib import uuid
+import uuid
 
 class UserHandler(JsonHandler):
     apikey = "9ad1eeb07ab80737"
