@@ -17,16 +17,24 @@ class EntryBuffer(object):
     def entryIDfn(self, entry):
         raise NotImplementedError("entryIDfn was not implemented")
         
-    def subscribe(self, relevantFn, count=0):
+    def subscribe(self, relevantFn, count=0, endID=-1):
         resultFuture = Future()
         subscriber = (resultFuture, relevantFn)
         pushed = False
         if count < 0:
             count = len(self.cache)
         relevantEntries = self.getRelevantEntries([entry for key, entry in self.cache.items()], relevantFn)
-        relevantCount = min(len(relevantEntries), count)
+        numRelevant = len(relevantEntries)
+        end = numRelevant
+        for i in range(numRelevant):
+            if self.entryIDfn(relevantEntries[i]) == endID:
+                end = i
+        relevantCount = min(end, count)
         if relevantCount > 0:
-            resultFuture.set_result(relevantEntries[-relevantCount:])
+            resultFuture.set_result(relevantEntries[end - relevantCount : end])
+            pushed = True
+        elif relevantCount <= 0 and endID >= 0:
+            resultFuture.set_result([])
             pushed = True
         if not pushed:
             self.subscribers.add(subscriber)

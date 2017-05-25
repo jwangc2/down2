@@ -3,13 +3,14 @@ var Grid = require("react-bootstrap/lib/Grid");
 var Row = require("react-bootstrap/lib/Row");
 var Col = require("react-bootstrap/lib/Col");
 var Well = require("react-bootstrap/lib/Well");
+var Button = require("react-bootstrap/lib/Button");
 var PostList = require("./PostList");
 var PostForm = require("./PostForm");
 var EmergencyList = require("./EmergencyList");
 
 var PostBox = React.createClass({
     getInitialState: function() {
-        return {posts: [], emergencies: [], UserID: null};
+        return {posts: [], emergencies: [], UserID: null, oldestPostID: -1};
     },
     checkinWithServer: function(successHandler) {
         $.ajax({
@@ -25,7 +26,7 @@ var PostBox = React.createClass({
             }.bind(this)
         });
     },
-    updateData: function(oldData, newData, matchFn) {
+    updateData: function(oldData, newData, append, matchFn) {
         var match, i, j;
         for (i = 0; i < newData.length; i++) {
             match = -1;
@@ -38,37 +39,54 @@ var PostBox = React.createClass({
             }
             if (match == -1) {
                 // append
-                oldData.push(newData[i]);
+                if (append) {
+                    oldData.push(newData[i]);
+                } else {
+                    oldData.splice(i, 0, newData[i]);
+                }
             } else {
                 // update
                 oldData[match] = newData[i];
             }
         }
     },
-    loadPostsFromServer: function(count) {
+    loadPostsFromServer: function(count, endID, longPoll) {
         var query = "?UserID=" + this.state.UserID;
+        var usingEndID = typeof(endID)!=='undefined';
         if (typeof(count)!=='undefined') {
             query = query + "&count=" + count.toString();
+        }
+        if (usingEndID) {
+            query = query + "&endID=" + endID.toString();
+        }
+        if (typeof(longPoll)=='undefined') {
+            var longPoll = true;
         }
         $.ajax({
             url: this.props.pollPostsUrl + query,
             dataType: 'json',
             cache: false,
             success: function(data) {
-                this.updateData(this.state.posts, data["data"], function(oldDatum, newDatum) {
+                this.updateData(this.state.posts, data["data"], !usingEndID, function(oldDatum, newDatum) {
                     return (oldDatum["ID"] == newDatum["ID"]);
                 });
-                this.setState({posts: this.state.posts});
-                this.loadPostsFromServer();
+                this.state.oldestPostID = data["data"].length > 0 ? this.state.posts[0]["ID"] : this.state.oldestPostID;
+                this.setState({posts: this.state.posts, oldestPostID: this.state.oldestPostID});
+                if (longPoll) {
+                    this.loadPostsFromServer();
+                }
             }.bind(this),
             error: function(xhr, status, err) {
                 console.error(this.props.url, status, err.toString());
                 if (xhr.status == 504) {
-                    this.loadPostsFromServer();
+                    this.loadPostsFromServer(count, endID, longPoll);
                 }
                 // todo: prompt user to refresh?
             }.bind(this)
         });
+    },
+    loadMorePosts: function() {
+        this.loadPostsFromServer(this.props.batchSize, this.state.oldestPostID, false);
     },
     loadEmergenciesFromServer: function(count) {
         var query = "?UserID=" + this.state.UserID;
@@ -162,7 +180,10 @@ var PostBox = React.createClass({
                             <PostForm onPostSubmit={this.handlePostsSubmit} />
                             <Well>
                                 <EmergencyList onEmergencyDismissed={this.handleEmergencyDismissed} data={this.state.emergencies}></EmergencyList>
-                                <PostList onPostLiked={this.handlePostLiked} data={this.state.posts}/>
+                                <div className="postContainer">
+                                    <PostList onPostLiked={this.handlePostLiked} data={this.state.posts}/>
+                                    <Button block onClick={this.loadMorePosts}>Load more...</Button>
+                                </div>
                             </Well>
                         </Panel>
                     </Col>

@@ -22,9 +22,10 @@ class PostHandler(JsonHandler):
             else:
                 # Retrieve our subscriber (conditions, future)
                 count = int(self.get_argument("count", 0, True))
+                endID = int(self.get_argument("endID", -1, True))
                 conditionsDict = self.userActivity[userID]["Conditions"]
                 conditionsPayload = (conditionsDict["Weather"], conditionsDict["Temperature"])
-                self.subscriber = self.postBuffer.subscribe(lambda post : PostHandler.postRelevantFn(post, conditionsPayload), count=count)
+                self.subscriber = self.postBuffer.subscribe(lambda post : PostHandler.postRelevantFn(post, conditionsPayload), count=count, endID=endID)
                 
                 # Yield for new messages
                 messages = yield self.postBuffer.getFuture(self.subscriber)
